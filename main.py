@@ -41,7 +41,7 @@ def get_slabs(scheme_name):
     else:
         return [[0,0]]
 
-@app.route('/paye/<scheme>/<int:salary>')
+@app.route('/api/paye/<scheme>/<int:salary>')
 def paye(scheme, salary):
     tax_slabs = []
     sal_remainder = salary
