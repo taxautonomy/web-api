@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 # Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +14,15 @@
 # limitations under the License.
 
 # [START gae_python37_app]
+
 from flask import Flask
 from flask import jsonify
-
+from flask_cors import CORS
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
 app = Flask(__name__)
+CORS(app)
 
 import sys
 
