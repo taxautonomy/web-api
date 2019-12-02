@@ -15,35 +15,37 @@
 
 # [START gae_python37_app]
 
+import sys
 from flask import Flask
 from flask import jsonify
 from flask_cors import CORS
+from google.cloud import datastore
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
 app = Flask(__name__)
 CORS(app)
 
-import sys
 
 # returns the slabs based on the tax scheme
-def get_slabs(scheme_name):
-    if scheme_name == "2018-2019":
-        return [[0,0],
-            [100000,4],
-            [150000,8],
-            [200000,12],
-            [250000,16],
-            [300000,20],
-            [350000,24]]
-    elif scheme_name == "2019-2020":
-        return [[0,0],
-            [250000,6],
-            [500000,12],
-            [750000,18]]
-    else:
-        return [[0,0]]
 
+
+def query_paye_slabs(scheme):
+    datastore_client = datastore.Client()
+
+    # The kind for the new entity
+    kind = 'paye-slab'
+    # The name/ID for the new entity
+
+    # The Cloud Datastore key for the new entity
+    scheme_key = datastore_client.key('scheme', scheme)
+
+    print("scheme key:{}".format(scheme_key.name))
+
+    query1 = datastore_client.query(kind=kind, ancestor=scheme_key)
+    #query1.add_filter('scheme', "=", scheme)
+    return list(query1.fetch())
+ 
 @app.route('/api/paye/<scheme>/<int:salary>')
 def paye(scheme, salary):
     tax_slabs = []
@@ -53,12 +55,12 @@ def paye(scheme, salary):
     app.logger.info('Salary: %d', salary)
     tax_total = 0
 
-    slabs = get_slabs(scheme)
+    slabs = query_paye_slabs(scheme)
 
     for i in range(len(slabs)):
         j = len(slabs) - i - 1
-        amt=slabs[j][0]
-        pct=slabs[j][1]
+        amt = slabs[j]['lower_band']
+        pct = slabs[j]['percentage']
 
         if sal_remainder > amt:
             taxable = sal_remainder - amt
@@ -66,8 +68,8 @@ def paye(scheme, salary):
             sal_remainder = amt
             tax_total += tax
         else:
-            taxable=0
-            tax=0
+            taxable = 0
+            tax = 0
 
         tax_slab = {
             "lower_band": amt,
@@ -83,6 +85,7 @@ def paye(scheme, salary):
         "slabs": tax_slabs}
 
     return jsonify(calculation)
+
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
