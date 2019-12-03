@@ -17,7 +17,7 @@ from google.cloud import datastore
 
 datastore_client = datastore.Client()
 
-def insert_scheme(id, assessment_year):
+def insert_scheme(assessment_year):
     # [START datastore_quickstart]
     # Imports the Google Cloud client library
 
@@ -28,7 +28,7 @@ def insert_scheme(id, assessment_year):
     # The name/ID for the new entity
 
     # The Cloud Datastore key for the new entity
-    scheme_key = datastore_client.key(kind, id)
+    scheme_key = datastore_client.key(kind, assessment_year)
 
     # Prepares the new entity
     scheme = datastore.Entity(key=scheme_key)
@@ -37,7 +37,7 @@ def insert_scheme(id, assessment_year):
     # Saves the entity
     datastore_client.put(scheme)
 
-    print('Saved {}: {}'.format(scheme.key.name, scheme['assessment_year']))
+    print('Saved {}: {}'.format(scheme.key, scheme['assessment_year']))
     # [END datastore_quickstart]
 
 def insert_paye_slab(scheme, lower_band, percentage):
@@ -61,7 +61,7 @@ def insert_paye_slab(scheme, lower_band, percentage):
     # Saves the entity
     datastore_client.put(slab)
 
-    print('Saved {}: {}'.format(slab.key.name, slab['lower_band']))
+    print('Saved {}: {}'.format(slab.key, slab['lower_band']))
     # [END datastore_quickstart]
 
 def query_paye_slabs(scheme):
@@ -82,17 +82,32 @@ def query_paye_slabs(scheme):
         print("Lower Band: LKR {}, Percentage: {}%".format(s["lower_band"], s["percentage"]))
     # [END datastore_quickstart]
 
+def get_schemes():
+        # The kind for the new entity
+    kind = 'scheme'
+    # The name/ID for the new entity
+
+    # The Cloud Datastore key for the new entity
+    #scheme_key = datastore_client.key('scheme', scheme)
+
+    #print("scheme key:{}".format(scheme_key.name))
+
+    get_schemes_query = datastore_client.query(kind=kind)
+    #query1.add_filter('scheme', "=", scheme)
+    schemes = list(get_schemes_query.fetch())
+    for s in schemes:
+        print(s['assessment_year'])
 
 if __name__ == '__main__':
-    query_paye_slabs('2019-20')
-    insert_scheme('2018-19','2018-2019')
-    insert_scheme('2019-20','2019-2020')
-    insert_paye_slab('2018-19', 250000, 6)
-    insert_paye_slab('2018-19', 500000, 12)
-    insert_paye_slab('2018-19', 750000, 18)
-    insert_paye_slab('2019-20', 100000, 4)
-    insert_paye_slab('2019-20', 150000, 8)
-    insert_paye_slab('2019-20', 200000, 12)
-    insert_paye_slab('2019-20', 250000, 16)
-    insert_paye_slab('2019-20', 300000, 20)
-    insert_paye_slab('2019-20', 350000, 24)
+    get_schemes()
+    insert_scheme('2018-2019')
+    insert_scheme('2019-2020')
+    insert_paye_slab('2019-2020', 250000, 6)
+    insert_paye_slab('2019-2020', 500000, 12)
+    insert_paye_slab('2019-2020', 750000, 18)
+    insert_paye_slab('2018-2019', 100000, 4)
+    insert_paye_slab('2018-2019', 150000, 8)
+    insert_paye_slab('2018-2019', 200000, 12)
+    insert_paye_slab('2018-2019', 250000, 16)
+    insert_paye_slab('2018-2019', 300000, 20)
+    insert_paye_slab('2018-2019', 350000, 24)

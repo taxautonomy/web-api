@@ -30,7 +30,7 @@ CORS(app)
 # returns the slabs based on the tax scheme
 
 
-def query_paye_slabs(scheme):
+def get_paye_slabs(scheme):
     datastore_client = datastore.Client()
 
     # The kind for the new entity
@@ -39,28 +39,29 @@ def query_paye_slabs(scheme):
 
     # The Cloud Datastore key for the new entity
     scheme_key = datastore_client.key('scheme', scheme)
+    get_slabs_query = datastore_client.query(kind=kind, ancestor=scheme_key)
+    return list(get_slabs_query.fetch())
 
-    print("scheme key:{}".format(scheme_key.name))
+def get_schemes():
+    datastore_client = datastore.Client()
+    kind = 'scheme'
+    get_schemes_query = datastore_client.query(kind=kind)
+    return list(get_schemes_query.fetch())
 
-    query1 = datastore_client.query(kind=kind, ancestor=scheme_key)
-    #query1.add_filter('scheme', "=", scheme)
-    return list(query1.fetch())
- 
-@app.route('/api/paye/<scheme>/<int:salary>')
-def paye(scheme, salary):
-    tax_slabs = []
+@app.route('/api/paye/schemes')
+def schemes():
+    return jsonify(get_schemes())
+
+def get_paye_calculation(scheme, salary):
     sal_remainder = salary
-
-    app.logger.info('Scheme: %s', scheme)
-    app.logger.info('Salary: %d', salary)
     tax_total = 0
 
-    slabs = query_paye_slabs(scheme)
+    slabs = get_paye_slabs(scheme)
+    slabs.sort(key = lambda i: i['lower_band'], reverse=True)
 
-    for i in range(len(slabs)):
-        j = len(slabs) - i - 1
-        amt = slabs[j]['lower_band']
-        pct = slabs[j]['percentage']
+    for slab in slabs:
+        amt = slab['lower_band']
+        pct = slab['percentage']
 
         if sal_remainder > amt:
             taxable = sal_remainder - amt
@@ -70,21 +71,22 @@ def paye(scheme, salary):
         else:
             taxable = 0
             tax = 0
+        
+        slab['taxable_amount'] = taxable
+        slab['tax_calculated'] = tax
 
-        tax_slab = {
-            "lower_band": amt,
-            "percentage": pct,
-            "taxable_amount": taxable,
-            "tax_calculated": tax
-        }
-        tax_slabs.append(tax_slab)
+    slabs.sort(key = lambda i: i['lower_band'])
 
     calculation = {
         "salary": salary,
         "tax_total": tax_total,
-        "slabs": tax_slabs}
+        "slabs": slabs}
 
-    return jsonify(calculation)
+    return calculation
+
+@app.route('/api/paye/schemes/<scheme>/<int:salary>')
+def paye(scheme, salary):
+    return jsonify(get_paye_calculation)
 
 
 if __name__ == '__main__':

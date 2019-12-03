@@ -1,0 +1,5 @@
+indexes:
+- kind: paye-slab
+  ancestor: yes
+  properties:
+  - name: lower_band
