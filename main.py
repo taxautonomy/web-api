@@ -16,47 +16,29 @@
 # [START gae_python37_app]
 
 import sys
-from flask import Flask
+from flask_api import FlaskAPI
 from flask import jsonify
 from flask_cors import CORS
 from google.cloud import datastore
+from data import scheme_dao
+from data import paye_slab_dao
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
-app = Flask(__name__)
+app = FlaskAPI(__name__)
 CORS(app)
 
 
 # returns the slabs based on the tax scheme
-
-
-def get_paye_slabs(scheme):
-    datastore_client = datastore.Client()
-
-    # The kind for the new entity
-    kind = 'paye-slab'
-    # The name/ID for the new entity
-
-    # The Cloud Datastore key for the new entity
-    scheme_key = datastore_client.key('scheme', scheme)
-    get_slabs_query = datastore_client.query(kind=kind, ancestor=scheme_key)
-    return list(get_slabs_query.fetch())
-
-def get_schemes():
-    datastore_client = datastore.Client()
-    kind = 'scheme'
-    get_schemes_query = datastore_client.query(kind=kind)
-    return list(get_schemes_query.fetch())
-
 @app.route('/api/paye/schemes')
 def schemes():
-    return jsonify(get_schemes())
+    return scheme_dao.get_all()
 
 def get_paye_calculation(scheme, salary):
     sal_remainder = salary
     tax_total = 0
 
-    slabs = get_paye_slabs(scheme)
+    slabs = paye_slab_dao.get_by_scheme(scheme)
     slabs.sort(key = lambda i: i['lower_band'], reverse=True)
 
     for slab in slabs:
@@ -86,7 +68,7 @@ def get_paye_calculation(scheme, salary):
 
 @app.route('/api/paye/schemes/<scheme>/<int:salary>')
 def paye(scheme, salary):
-    return jsonify(get_paye_calculation)
+    return get_paye_calculation(scheme, salary)
 
 
 if __name__ == '__main__':
