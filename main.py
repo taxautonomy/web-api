@@ -60,6 +60,7 @@ def get_paye_calculation(scheme, salary):
     slabs.sort(key = lambda i: i['lower_band'])
 
     calculation = {
+        "scheme": scheme,
         "salary": salary,
         "tax_total": tax_total,
         "slabs": slabs}
