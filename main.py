@@ -32,7 +32,11 @@ CORS(app)
 # returns the slabs based on the tax scheme
 @app.route('/api/paye/schemes')
 def schemes():
-    return scheme_dao.get_all()
+    scheme_list = scheme_dao.get_all()
+
+    for scheme in scheme_list:
+        scheme['name'] = scheme.key.name
+    return scheme_list
 
 def get_paye_calculation(scheme, salary):
     sal_remainder = salary
