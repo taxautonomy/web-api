@@ -17,11 +17,10 @@
 
 import sys
 from flask_api import FlaskAPI
-from flask import jsonify
+from flask import jsonify, request
 from flask_cors import CORS
 from google.cloud import datastore
-from data import scheme_dao
-from data import paye_slab_dao
+from data import scheme_dao, slab_dao
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
@@ -30,13 +29,22 @@ CORS(app)
 
 
 # returns the slabs based on the tax scheme
-@app.route('/api/paye/schemes')
-def schemes():
+@app.route('/api/schemes')
+def get_schemes():
     scheme_list = scheme_dao.get_all()
-
-    for scheme in scheme_list:
-        scheme['name'] = scheme.key.name
     return scheme_list
+
+@app.route('/api/schemes/<scheme_id>')
+def get_scheme(scheme_id):
+    scheme = scheme_dao.get_by_id(scheme_id)
+    scheme['slabs'] = get_slabs_by_scheme(scheme_id)
+    return scheme
+
+@app.route('/api/schemes/<scheme_id>/slabs')
+def get_slabs_by_scheme(scheme_id):
+    slabs = slab_dao.get_by_scheme(scheme_id)
+    slabs.sort(key = lambda i: i['lower_band'])
+    return slabs
 
 def get_paye_calculation(scheme, salary):
     sal_remainder = salary
@@ -74,6 +82,13 @@ def get_paye_calculation(scheme, salary):
 @app.route('/api/paye/schemes/<scheme>/<int:salary>')
 def paye(scheme, salary):
     return get_paye_calculation(scheme, salary)
+
+@app.route('/api/schemes/<scheme>/taxes')
+def calculate_tax(scheme):
+    income = request.args.get('i', type=float, default=0)
+    qp = request.args.get('qp', type=float, default=0)
+    tp = request.args.get('tp', type=float, default=0)
+    return {'income':income, 'qualifying_payments':qp, 'tax_payments': tp}
 
 
 if __name__ == '__main__':
