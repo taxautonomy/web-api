@@ -67,6 +67,7 @@ def calculate_tax(scheme, income, qp, tp):
     i_rem = income - qp_actual
 
     tax_total = 0
+    taxable_total = 0
 
     slabs = slab_dao.get_by_scheme(scheme)
     slabs.sort(key = lambda i: i['lower_band'], reverse=True)
@@ -84,6 +85,7 @@ def calculate_tax(scheme, income, qp, tp):
             taxable = 0
             tax = 0
         
+        taxable_total += taxable
         slab['taxable_amount'] = taxable
         slab['tax_calculated'] = tax
 
@@ -91,7 +93,7 @@ def calculate_tax(scheme, income, qp, tp):
 
     calculation = {
         "scheme": scheme,
-        "income": income,
+        "taxable_income": taxable_total,
         "qp_actual": qp_actual,
         "tax_total": tax_total - tp,
         "slabs": slabs}
