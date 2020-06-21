@@ -20,7 +20,7 @@ from flask_api import FlaskAPI
 from flask import jsonify, request
 from flask_cors import CORS
 from google.cloud import datastore
-from data import scheme_dao, slab_dao
+from data import scheme_dao, slab_dao, qp_def
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
@@ -38,6 +38,7 @@ def get_schemes():
 def get_scheme(scheme_id):
     scheme = scheme_dao.get_by_id(scheme_id)
     scheme['slabs'] = get_slabs_by_scheme(scheme_id)
+    scheme['qp_def'] = qp_def.get_by_scheme(scheme_id)
     return scheme
 
 @app.route('/api/schemes/<scheme_id>/slabs')
@@ -46,21 +47,38 @@ def get_slabs_by_scheme(scheme_id):
     slabs.sort(key = lambda i: i['lower_band'])
     return slabs
 
-def get_paye_calculation(scheme, salary):
-    sal_remainder = salary
+@app.route('/api/schemes/<scheme_id>/qp_def')
+def get_qp_def(scheme_id):
+    return qp_def.get_by_scheme(scheme_id)
+
+def get_qp(scheme, income, qp_supplied):
+    qp_def_list = qp_def.get_by_scheme(scheme)
+    if len(qp_def_list) == 0:
+        return 0
+    
+    qp_cap = qp_def_list[0]['cap']
+
+    return qp_supplied if qp_supplied < qp_cap else qp_cap
+
+def calculate_tax(scheme, income, qp, tp):
+
+    qp_actual = get_qp(scheme, income, qp)
+    
+    i_rem = income - qp_actual
+
     tax_total = 0
 
-    slabs = paye_slab_dao.get_by_scheme(scheme)
+    slabs = slab_dao.get_by_scheme(scheme)
     slabs.sort(key = lambda i: i['lower_band'], reverse=True)
 
     for slab in slabs:
         amt = slab['lower_band']
         pct = slab['percentage']
 
-        if sal_remainder > amt:
-            taxable = sal_remainder - amt
+        if i_rem > amt:
+            taxable = i_rem - amt
             tax = taxable*pct/100
-            sal_remainder = amt
+            i_rem = amt
             tax_total += tax
         else:
             taxable = 0
@@ -73,8 +91,9 @@ def get_paye_calculation(scheme, salary):
 
     calculation = {
         "scheme": scheme,
-        "salary": salary,
-        "tax_total": tax_total,
+        "income": income,
+        "qp_actual": qp_actual,
+        "tax_total": tax_total - tp,
         "slabs": slabs}
 
     return calculation
@@ -84,11 +103,12 @@ def paye(scheme, salary):
     return get_paye_calculation(scheme, salary)
 
 @app.route('/api/schemes/<scheme>/taxes')
-def calculate_tax(scheme):
+def get_tax(scheme):
     income = request.args.get('i', type=float, default=0)
     qp = request.args.get('qp', type=float, default=0)
     tp = request.args.get('tp', type=float, default=0)
-    return {'income':income, 'qualifying_payments':qp, 'tax_payments': tp}
+
+    return calculate_tax(scheme,income,qp,tp)
 
 
 if __name__ == '__main__':
