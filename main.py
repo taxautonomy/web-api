@@ -100,10 +100,6 @@ def calculate_tax(scheme, income, qp, tp):
 
     return calculation
 
-@app.route('/api/paye/schemes/<scheme>/<int:salary>')
-def paye(scheme, salary):
-    return get_paye_calculation(scheme, salary)
-
 @app.route('/api/schemes/<scheme>/taxes')
 def get_tax(scheme):
     income = request.args.get('i', type=float, default=0)
@@ -111,7 +107,6 @@ def get_tax(scheme):
     tp = request.args.get('tp', type=float, default=0)
 
     return calculate_tax(scheme,income,qp,tp)
-
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
