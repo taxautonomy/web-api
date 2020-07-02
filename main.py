@@ -20,7 +20,7 @@ from flask_api import FlaskAPI
 from flask import jsonify, request
 from flask_cors import CORS
 from google.cloud import datastore
-from data import scheme_dao, slab_dao, qp_def
+from data import scheme_dao, slab_dao, qp_def_dao, tx_dao, ws_dao, user_dao
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look for an app
 # called `app` in `main.py`.
@@ -38,7 +38,7 @@ def get_schemes():
 def get_scheme(scheme_id):
     scheme = scheme_dao.get_by_id(scheme_id)
     scheme['slabs'] = get_slabs_by_scheme(scheme_id)
-    scheme['qp_def'] = qp_def.get_by_scheme(scheme_id)
+    scheme['qp_def'] = qp_def_dao.get_by_scheme(scheme_id)
     return scheme
 
 @app.route('/api/schemes/<scheme_id>/slabs')
@@ -49,10 +49,10 @@ def get_slabs_by_scheme(scheme_id):
 
 @app.route('/api/schemes/<scheme_id>/qp_def')
 def get_qp_def(scheme_id):
-    return qp_def.get_by_scheme(scheme_id)
+    return qp_def_dao.get_by_scheme(scheme_id)
 
 def get_qp(scheme, income, qp_supplied):
-    qp_def_list = qp_def.get_by_scheme(scheme)
+    qp_def_list = qp_def_dao.get_by_scheme(scheme)
     if len(qp_def_list) == 0:
         return 0
     
@@ -102,11 +102,35 @@ def calculate_tax(scheme, income, qp, tp):
 
 @app.route('/api/schemes/<scheme>/taxes')
 def get_tax(scheme):
-    income = request.args.get('i', type=float, default=0)
+    income = request.args.get('in', type=float, default=0)
     qp = request.args.get('qp', type=float, default=0)
     tp = request.args.get('tp', type=float, default=0)
 
     return calculate_tax(scheme,income,qp,tp)
+
+# user
+@app.route('/api/users')
+def get_user_by_email():
+    email = request.args.get('email')
+    user = user_dao.get_by_email(email)
+    if user == None:
+        return '', 404
+    return user
+
+# ws
+@app.route('/api/users/<user_id>/ws')
+def get_ws_by_user_id(user_id):
+    return ws_dao.get_by_user_id(int(user_id))
+
+# tx
+@app.route('/api/ws/<ws_id>/tx')
+def get_tx_by_ws_id(ws_id):
+    tx_type = request.args.get('type')
+
+    if tx_type == None:
+        return tx_dao.get_by_ws_id(int(ws_id))
+    else:
+        return tx_dao.get_by_ws_id_type(int(ws_id), tx_type)
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
