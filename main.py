@@ -113,6 +113,7 @@ def get_tax(scheme):
 def get_user_by_email():
     email = request.args.get('email')
     user = user_dao.get_by_email(email)
+    user['workspaces'] = ws_dao.get_by_user_id(user['id'])
     if user == None:
         return '', 404
     return user
