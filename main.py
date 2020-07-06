@@ -123,7 +123,7 @@ def get_ws_by_user_id(user_id):
     return ws_dao.get_by_user_id(int(user_id))
 
 # tx
-@app.route('/api/ws/<ws_id>/tx')
+@app.route('/api/ws/<ws_id>/tx', methods=['GET'])
 def get_tx_by_ws_id(ws_id):
     tx_type = request.args.get('type')
 
@@ -131,6 +131,23 @@ def get_tx_by_ws_id(ws_id):
         return tx_dao.get_by_ws_id(int(ws_id))
     else:
         return tx_dao.get_by_ws_id_type(int(ws_id), tx_type)
+
+@app.route('/api/ws/<ws_id>/tx', methods=['POST'])
+def add_tx(ws_id):
+    tx = request.json
+    tx_dao.add(int(ws_id), tx['type'], tx['date'], tx['desc'], tx['amt'])
+    return tx, 201
+
+@app.route('/api/ws/<ws_id>/tx/<id>', methods=['POST'])
+def update_tx(id, ws_id):
+    tx = request.json
+    tx_dao.update(int(id), int(ws_id), tx['type'], tx['date'], tx['desc'], tx['amt'])
+    return tx
+
+@app.route('/api/ws/<ws_id>/tx/<id>', methods=['DELETE'])
+def delete_tx(id, ws_id):
+    tx_dao.delete(int(id), int(ws_id))
+    return '', 200
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
