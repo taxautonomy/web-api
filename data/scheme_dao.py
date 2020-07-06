@@ -16,7 +16,5 @@ def get_all():
 def get_by_id(id):
     datastore_client = datastore.Client()
     scheme_key = datastore_client.key('scheme', id)
-    print(scheme_key)
     scheme = datastore_client.get(scheme_key)
-    print(scheme)
     return scheme
