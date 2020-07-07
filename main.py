@@ -100,13 +100,25 @@ def calculate_tax(scheme, income, qp, tp):
 
     return calculation
 
-@app.route('/api/schemes/<scheme>/taxes')
-def get_tax(scheme):
-    income = request.args.get('in', type=float, default=0)
-    qp = request.args.get('qp', type=float, default=0)
-    tp = request.args.get('tp', type=float, default=0)
+# @app.route('/api/schemes/<scheme>/taxes')
+# def get_tax(scheme):
+#     income = request.args.get('in', type=float, default=0)
+#     qp = request.args.get('qp', type=float, default=0)
+#     tp = request.args.get('tp', type=float, default=0)
 
-    return calculate_tax(scheme,income,qp,tp)
+#     return calculate_tax(scheme,income,qp,tp);
+
+@app.route('/api/users/<user_id>/ws/<ws_id>/taxes')
+def get_tax(user_id, ws_id):
+
+    ws = ws_dao.get_by_id(int(user_id), int(ws_id))
+    tx_list = tx_dao.get_by_ws_id(int(ws_id))
+    totals = {'in':0, 'qp':0, 'tp':0}
+
+    for tx in tx_list:
+        totals[tx['type']] = totals[tx['type']] + tx['amt']
+
+    return calculate_tax(ws['scheme_id'],totals['in'],totals['qp'],totals['tp'])
 
 # user
 @app.route('/api/users')
