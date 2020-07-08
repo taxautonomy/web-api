@@ -108,11 +108,26 @@ def calculate_tax(scheme, income, qp, tp):
 
 #     return calculate_tax(scheme,income,qp,tp);
 
-@app.route('/api/users/<user_id>/ws/<ws_id>/taxes')
+@app.route('/api/users/<int:user_id>/ws/<int:ws_id>')
+def get_ws_info(user_id, ws_id):
+
+    ws = ws_dao.get_by_id(user_id, ws_id)
+    tx_list = tx_dao.get_by_ws_id(ws_id)
+    totals = {'in':0, 'qp':0, 'tp':0}
+
+    for tx in tx_list:
+        totals[tx['type']] = totals[tx['type']] + tx['amt']
+
+    ws['transactions'] = tx_dao.get_by_ws_id(ws_id)
+    ws['tax'] = get_tax(user_id, ws_id)
+
+    return ws
+
+@app.route('/api/users/<int:user_id>/ws/<int:ws_id>/taxes')
 def get_tax(user_id, ws_id):
 
-    ws = ws_dao.get_by_id(int(user_id), int(ws_id))
-    tx_list = tx_dao.get_by_ws_id(int(ws_id))
+    ws = ws_dao.get_by_id(user_id, ws_id)
+    tx_list = tx_dao.get_by_ws_id(ws_id)
     totals = {'in':0, 'qp':0, 'tp':0}
 
     for tx in tx_list:
@@ -125,41 +140,50 @@ def get_tax(user_id, ws_id):
 def get_user_by_email():
     email = request.args.get('email')
     user = user_dao.get_by_email(email)
-    user['workspaces'] = ws_dao.get_by_user_id(user['id'])
+
     if user == None:
         return '', 404
+    
+    ws_list = ws_dao.get_by_user_id(user['id'])
+
+    # for ws in ws_list:
+    #     if ws['is_default'] == True:
+    #         ws['transactions'] = tx_dao.get_by_ws_id(ws['id'])
+    #         ws['tax'] = get_tax(user['id'], ws['id'])
+    user['workspaces'] = ws_list
+
     return user
 
 # ws
-@app.route('/api/users/<user_id>/ws')
+@app.route('/api/users/<int:user_id>/ws')
 def get_ws_by_user_id(user_id):
-    return ws_dao.get_by_user_id(int(user_id))
+    return ws_dao.get_by_user_id(user_id)
 
 # tx
-@app.route('/api/ws/<ws_id>/tx', methods=['GET'])
+@app.route('/api/ws/<int:ws_id>/tx', methods=['GET'])
 def get_tx_by_ws_id(ws_id):
     tx_type = request.args.get('type')
 
     if tx_type == None:
-        return tx_dao.get_by_ws_id(int(ws_id))
+        return tx_dao.get_by_ws_id(ws_id)
     else:
-        return tx_dao.get_by_ws_id_type(int(ws_id), tx_type)
+        return tx_dao.get_by_ws_id_type(ws_id, tx_type)
 
-@app.route('/api/ws/<ws_id>/tx', methods=['POST'])
+@app.route('/api/ws/<int:ws_id>/tx', methods=['POST'])
 def add_tx(ws_id):
     tx = request.json
-    tx_dao.add(int(ws_id), tx['type'], tx['date'], tx['desc'], tx['amt'])
+    tx_dao.add(ws_id, tx['type'], tx['date'], tx['desc'], tx['amt'])
     return tx, 201
 
-@app.route('/api/ws/<ws_id>/tx/<id>', methods=['POST'])
+@app.route('/api/ws/<int:ws_id>/tx/<int:id>', methods=['POST'])
 def update_tx(id, ws_id):
     tx = request.json
-    tx_dao.update(int(id), int(ws_id), tx['type'], tx['date'], tx['desc'], tx['amt'])
+    tx_dao.update(id, ws_id, tx['type'], tx['date'], tx['desc'], tx['amt'])
     return tx
 
-@app.route('/api/ws/<ws_id>/tx/<id>', methods=['DELETE'])
+@app.route('/api/ws/<int:ws_id>/tx/<int:id>', methods=['DELETE'])
 def delete_tx(id, ws_id):
-    tx_dao.delete(int(id), int(ws_id))
+    tx_dao.delete(id, ws_id)
     return '', 200
 
 if __name__ == '__main__':
