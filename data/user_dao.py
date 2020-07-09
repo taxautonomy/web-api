@@ -14,6 +14,8 @@ def add(email, name):
     })
 
     db.put(user)
+    user['id'] = user.key.id
+    return user
 
 def get_by_email(email):
     get_user_query = db.query(kind=KIND)

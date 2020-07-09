@@ -20,13 +20,14 @@ def add(user_id, scheme_id, scheme_type, scheme_name, is_active, is_default):
     })
 
     db.put(ws)
+    ws['id'] = ws.key.id
+    return ws
 
 def get_by_id(user_id, id):
     user_key = db.key('user', user_id)
     ws_key = db.key(KIND, id, parent=user_key)
-
-
     ws = db.get(ws_key)
+    ws['id'] = id
     return ws
 
 def get_by_id_only(id):
@@ -49,6 +50,9 @@ def get_by_user_id(user_id):
 
 def add_all(user_id):
     schemes = scheme_dao.get_all()
+    ws_list = []
     for scheme in schemes:
-        add(user_id, scheme['id'], scheme['type'], scheme['name'], scheme['is_active'], scheme['is_default'])
+        ws_list.append(add(user_id, scheme['id'], scheme['type'], scheme['name'], scheme['is_active'], scheme['is_default']))
+    
+    return ws_list
 

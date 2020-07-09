@@ -27,6 +27,14 @@ from data import scheme_dao, slab_dao, qp_def_dao, tx_dao, ws_dao, user_dao
 app = FlaskAPI(__name__)
 CORS(app)
 
+def get_user_id():
+    auth_header = request.headers['Authorization']
+    return int(auth_header[7:])
+
+def provision_user(email):
+    user = user_dao.add(email, email)
+    user['workspaces'] = ws_dao.add_all(user['id'])
+    return user
 
 # returns the slabs based on the tax scheme
 @app.route('/api/schemes')
@@ -60,16 +68,25 @@ def get_qp(scheme, income, qp_supplied):
 
     return qp_supplied if qp_supplied < qp_cap else qp_cap
 
-def calculate_tax(scheme, income, qp, tp):
+def calculate_tax(ws):
 
-    qp_actual = get_qp(scheme, income, qp)
+    scheme_id = ws['scheme_id']
+
+    tx_list = tx_dao.get_by_ws_id(ws['id'])
+
+    totals = {'in':0, 'qp':0, 'tp':0}
+
+    for tx in tx_list:
+        totals[tx['type']] = totals[tx['type']] + tx['amt']
+
+    qp_actual = get_qp(scheme_id, totals['in'], totals['qp'])
     
-    i_rem = income - qp_actual
+    i_rem =  totals['in'] - qp_actual
 
     tax_total = 0
     taxable_total = 0
 
-    slabs = slab_dao.get_by_scheme(scheme)
+    slabs = slab_dao.get_by_scheme(scheme_id)
     slabs.sort(key = lambda i: i['lower_band'], reverse=True)
 
     for slab in slabs:
@@ -92,10 +109,10 @@ def calculate_tax(scheme, income, qp, tp):
     slabs.sort(key = lambda i: i['lower_band'])
 
     calculation = {
-        "scheme": scheme,
+        "scheme": scheme_id,
         "taxable_income": taxable_total,
         "qp_actual": qp_actual,
-        "tax_total": tax_total - tp,
+        "tax_total": tax_total - totals['qp'],
         "slabs": slabs}
 
     return calculation
@@ -108,9 +125,9 @@ def calculate_tax(scheme, income, qp, tp):
 
 #     return calculate_tax(scheme,income,qp,tp);
 
-@app.route('/api/users/<int:user_id>/ws/<int:ws_id>')
-def get_ws_info(user_id, ws_id):
-
+@app.route('/api/ws/<int:ws_id>')
+def get_ws_info(ws_id):
+    user_id = get_user_id()
     ws = ws_dao.get_by_id(user_id, ws_id)
     tx_list = tx_dao.get_by_ws_id(ws_id)
     totals = {'in':0, 'qp':0, 'tp':0}
@@ -119,21 +136,16 @@ def get_ws_info(user_id, ws_id):
         totals[tx['type']] = totals[tx['type']] + tx['amt']
 
     ws['transactions'] = tx_dao.get_by_ws_id(ws_id)
-    ws['tax'] = get_tax(user_id, ws_id)
+    ws['tax'] = calculate_tax(ws)
 
     return ws
 
-@app.route('/api/users/<int:user_id>/ws/<int:ws_id>/taxes')
-def get_tax(user_id, ws_id):
-
+@app.route('/api/ws/<int:ws_id>/taxes')
+def get_tax(ws_id):
+    user_id = get_user_id()
     ws = ws_dao.get_by_id(user_id, ws_id)
-    tx_list = tx_dao.get_by_ws_id(ws_id)
-    totals = {'in':0, 'qp':0, 'tp':0}
 
-    for tx in tx_list:
-        totals[tx['type']] = totals[tx['type']] + tx['amt']
-
-    return calculate_tax(ws['scheme_id'],totals['in'],totals['qp'],totals['tp'])
+    return calculate_tax(ws)
 
 # user
 @app.route('/api/users')
@@ -142,7 +154,7 @@ def get_user_by_email():
     user = user_dao.get_by_email(email)
 
     if user == None:
-        return '', 404
+        return provision_user(email)
     
     ws_list = ws_dao.get_by_user_id(user['id'])
 
@@ -155,8 +167,9 @@ def get_user_by_email():
     return user
 
 # ws
-@app.route('/api/users/<int:user_id>/ws')
-def get_ws_by_user_id(user_id):
+@app.route('/api/ws')
+def get_ws_by_user_id():
+    user_id = get_user_id()
     return ws_dao.get_by_user_id(user_id)
 
 # tx
@@ -171,8 +184,9 @@ def get_tx_by_ws_id(ws_id):
 
 @app.route('/api/ws/<int:ws_id>/tx', methods=['POST'])
 def add_tx(ws_id):
+    user_id = get_user_id()
     tx = request.json
-    tx_dao.add(ws_id, tx['type'], tx['date'], tx['desc'], tx['amt'])
+    tx = tx_dao.add(ws_id, tx['type'], tx['date'], tx['desc'], tx['amt'])
     return tx, 201
 
 @app.route('/api/ws/<int:ws_id>/tx/<int:id>', methods=['POST'])

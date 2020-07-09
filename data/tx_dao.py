@@ -17,6 +17,9 @@ def add(ws_id, tx_type, date, desc, amt):
 
     db.put(tx)
 
+    tx['id'] = tx.key.id
+    return tx
+
 def update(id, ws_id, tx_type, date, desc, amt):
     with db.transaction():
         ws_key = db.key('ws', ws_id)
